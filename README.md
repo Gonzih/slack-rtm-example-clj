@@ -4,7 +4,9 @@ Example of how to connect to Slack RTM api via aleph websocket client
 
 ## Usage
 
+```
 env TOKEN=slacktoken lein run
+```
 
 ## License
 
