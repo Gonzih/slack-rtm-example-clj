@@ -8,6 +8,8 @@ Example of how to connect to Slack RTM api via aleph websocket client
 env TOKEN=slacktoken lein run
 ```
 
+For more information on all possible incoming events refer to official documentation https://api.slack.com/rtm
+
 ## License
 
 Copyright © 2017 Max Gonzih
