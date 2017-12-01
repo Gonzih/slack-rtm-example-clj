@@ -125,7 +125,7 @@
 (defn slack-loop []
   (d/let-flow [{:keys [url id]} (websocket-connection-info!)
                conn (http/websocket-client url {:headers {:origin "https://api.slack.com/"}})]
-    (println "Connected to slack websocket")
+    (green "Connected to slack websocket")
     (ping-loop conn)
     (d/loop []
       (d/let-flow [msg (ms/take! conn)
