@@ -2,8 +2,48 @@
   (:require [aleph.http :as http]
             [byte-streams :as bs]
             [cheshire.core :as json]
-            [manifold.stream :as s]
-            [environ.core :refer [env]]))
+            [environ.core :refer [env]]
+            [manifold.stream :as ms]
+            [clojure.spec.alpha :as s]))
+
+(defn explain-or-valid? [spec x]
+  (if (s/valid? spec x)
+    true
+    (do
+      (s/explain spec x)
+      false)))
+
+(s/def ::type #{"hello" "message" "pong" "reconnect_url" "user_typing" "ping"})
+(s/def ::id number?)
+(s/def ::user string?)
+(s/def ::reply_to number?)
+(s/def ::url string?)
+(s/def ::channel string?)
+(s/def ::user string?)
+(s/def ::text string?)
+(s/def ::ts string?)
+(s/def ::source_team string?)
+(s/def ::team string?)
+
+(defmulti incoming-message :type)
+(defmethod incoming-message "hello" [_]
+  (s/keys :req-un [::type]))
+(defmethod incoming-message "message" [_]
+  (s/keys :req-un [::type ::channel ::user ::text ::ts]
+          :opt-un [::team ::source_team]))
+(defmethod incoming-message "pong" [_]
+  (s/keys :req-un [::type ::reply_to]))
+(defmethod incoming-message "reconnect_url" [_]
+  (s/keys :req-un [::type ::url]))
+(defmethod incoming-message "user_typing" [_]
+  (s/keys :req-un [::type ::channel ::user]))
+
+(defmulti outgoing-message :type)
+(defmethod outgoing-message "ping" [_]
+  (s/keys :req-un [::type ::id]))
+
+(s/def ::incoming-message (s/multi-spec incoming-message :type))
+(s/def ::outgoing-message (s/multi-spec outgoing-message :type))
 
 (defn bs->string [response-stream]
   (bs/to-string response-stream))
@@ -35,12 +75,17 @@
     {:url (:url response)
      :id (-> response :self :id)}))
 
+(defn put-msg! [conn message]
+  {:pre [(explain-or-valid? ::outgoing-message message)]}
+  (ms/put! conn (->json message)))
+
 (defn ping-loop [conn]
-  (s/put! conn (->json {:id 0 :type "ping"}))
+  (put-msg! conn {:id 0 :type "ping"})
   (Thread/sleep (* 10 1000))
   (recur conn))
 
 (defn handle-message [message]
+  {:pre [(explain-or-valid? ::incoming-message message)]}
   (println message))
 
 (defn slack-loop []
@@ -50,7 +95,7 @@
     (println "Connected to slack websocket")
     (future (ping-loop conn))
     (loop [conn conn]
-      (let [msg @(s/take! conn)
+      (let [msg @(ms/take! conn)
             message (json/parse-string msg true)]
         (handle-message message))
       (recur conn))))
