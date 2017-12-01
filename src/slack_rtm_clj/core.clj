@@ -11,6 +11,8 @@
 (defn string->map [string]
   (json/parse-string string true))
 
+(def ->json json/generate-string)
+
 (defn bs->map [response-stream]
   (string->map (bs->string response-stream)))
 
@@ -34,7 +36,7 @@
      :id (-> response :self :id)}))
 
 (defn ping-loop [conn]
-  (s/put! conn (json/generate-string {:id 0 :type "ping"}))
+  (s/put! conn (->json {:id 0 :type "ping"}))
   (Thread/sleep (* 10 1000))
   (recur conn))
 
