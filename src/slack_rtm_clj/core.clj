@@ -13,7 +13,7 @@
       (s/explain spec x)
       false)))
 
-(s/def ::type #{"hello" "message" "pong" "reconnect_url" "user_typing" "ping"})
+(s/def ::type #{"hello" "message" "pong" "reconnect_url" "user_typing" "ping" "presence_change"})
 (s/def ::id number?)
 (s/def ::user string?)
 (s/def ::reply_to number?)
@@ -24,19 +24,25 @@
 (s/def ::ts string?)
 (s/def ::source_team string?)
 (s/def ::team string?)
+(s/def ::edited (s/keys :req-un [::user ::ts]))
+(s/def ::subtype string?)
+(s/def ::hidden boolean?)
+(s/def ::presence #{"away"})
 
 (defmulti incoming-message :type)
 (defmethod incoming-message "hello" [_]
   (s/keys :req-un [::type]))
 (defmethod incoming-message "message" [_]
-  (s/keys :req-un [::type ::channel ::user ::text ::ts]
-          :opt-un [::team ::source_team]))
+  (s/keys :req-un [::type ::channel ::ts]
+          :opt-un [::user ::text ::team ::source_team ::edited ::hidden ::message]))
 (defmethod incoming-message "pong" [_]
   (s/keys :req-un [::type ::reply_to]))
 (defmethod incoming-message "reconnect_url" [_]
   (s/keys :req-un [::type ::url]))
 (defmethod incoming-message "user_typing" [_]
   (s/keys :req-un [::type ::channel ::user]))
+(defmethod incoming-message "presence_change" [_]
+  (s/keys :req-un [::type ::presence ::user]))
 
 (defmulti outgoing-message :type)
 (defmethod outgoing-message "ping" [_]
