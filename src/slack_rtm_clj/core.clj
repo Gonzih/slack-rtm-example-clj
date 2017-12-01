@@ -7,13 +7,25 @@
             [manifold.deferred  :as    d]
             [clojure.spec.alpha :as    s]))
 
+(def ansi-reset  "\u001B[0m")
+(def ansi-red    "\u001B[31m")
+(def ansi-green  "\u001B[32m")
+(def ansi-yellow "\u001B[33m")
+
+(defn- paint [color & xs]
+  (println (str color (reduce str (interpose " " xs)) ansi-reset)))
+
+(def red (partial paint ansi-red))
+(def green (partial paint ansi-green))
+(def yellow (partial paint ansi-yellow))
+
 (defn rand-id [] (rand-int 100000))
 
 (defn explain-or-valid? [spec x]
   (if (s/valid? spec x)
     true
     (do
-      (s/explain spec x)
+      (red (s/explain-str spec x))
       false)))
 
 (s/def ::type string?)
@@ -92,20 +104,19 @@
 
 (defn put-msg! [conn message]
   {:pre [(explain-or-valid? ::outgoing-message message)]}
+  (yellow "<-" message)
   (ms/put! conn (->json message)))
 
 (defn reply! [conn message reply]
   (put-msg! conn {:id (rand-id) :type "message" :channel (:channel message) :text reply}))
 
 (defn ping-loop [conn]
-  (d/loop []
-    (put-msg! conn {:id (rand-id) :type "ping"})
-    (Thread/sleep (* 10 1000))
-    (d/recur)))
+  (ms/consume #(put-msg! conn {:id % :type "ping"})
+              (ms/periodically 10000 rand-id)))
 
 (defn message-handler [conn message]
   {:pre [(explain-or-valid? ::incoming-message message)]}
-  (println message)
+  (green "->" message)
   (let [reply (cond
                 (= "!hello" (:text message)) "hello world"
                 :else nil)]
@@ -115,7 +126,7 @@
   (d/let-flow [{:keys [url id]} (websocket-connection-info!)
                conn (http/websocket-client url {:headers {:origin "https://api.slack.com/"}})]
     (println "Connected to slack websocket")
-    (d/future (ping-loop conn))
+    (ping-loop conn)
     (d/loop []
       (d/let-flow [msg (ms/take! conn)
                    message (string->map msg)]
