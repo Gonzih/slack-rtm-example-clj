@@ -127,11 +127,8 @@
                conn (http/websocket-client url {:headers {:origin "https://api.slack.com/"}})]
     (green "Connected to slack websocket")
     (ping-loop conn)
-    (d/loop []
-      (d/let-flow [msg (ms/take! conn)
-                   message (string->map msg)]
-        (d/future (message-handler conn message))
-        (d/recur)))))
+    (ms/consume #(d/future (message-handler conn (string->map %)))
+                conn)))
 
 (defn -main []
   (slack-loop)
