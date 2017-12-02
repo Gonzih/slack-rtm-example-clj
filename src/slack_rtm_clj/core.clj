@@ -132,4 +132,4 @@
 
 (defn -main []
   (slack-loop)
-  @(promise))
+  (deref (promise)))
